@@ -104,23 +104,20 @@ promise. Do not turn untested supported paths into PASS or hide them.
 | `breaking-changes` | Review behavior and diff since the last published release, not only commit labels | Release notes identify each breaking change with before/after, impact and user action (recreate lab, change setting, etc.). Breaking changes are allowed; no migration mechanism is implied. |
 | `review` | Different agent reviews candidate diff, findings, fixes and actual proof | Independent review and correction evidence; no self-review presented as independent. |
 
-Durable assertions enrich only the nine existing scenarios and helpers in
-`internal/cli/orchestrator_e2e_test.go`; do not add parallel scenario files,
-suites, entry points, jobs or Makefile runners. Run temporary live scripts through `direnv exec . python3` with
+Durable assertions follow the
+[E2E scenario rule](https://github.com/taxiway-sh/taxiway/blob/main/AGENTS.md#e2e-scenarios).
+Run temporary live scripts through `direnv exec . python3` with
 `PYTHONPATH="$PWD/tests/live"` from the worktree. Follow
 [model gateway validation](model-gateway-tests.md) and the live guide for setup
 and preflight; do not reinvent authentication plumbing.
-Build the candidate binary before testing. For missing/rejected authentication,
-give the user the exact native reconnection command for the owned reference lab,
-then verify a bounded real request. Reuse `taxiway_live.py` for authorized labs.
-Distinguish expired/rejected auth from network/model/gateway failure. Never infer
-validity from credential file presence or copy Codex client auth into guests.
-Continue independent checks while authentication is pending.
+Build the candidate binary before testing. Handle missing or rejected
+authentication with [the live guide's procedure](live-tests.md#when-authentication-fails)
+and continue independent checks while authentication is pending.
 
 The existing `e2e.yml` workflow may replace local orchestrator E2Es when run on
-the exact candidate. Verify all nine scenarios, job conclusions and head SHA,
-including skips; save a bounded sanitized summary with run URL. Do not accept
-core CI alone or a green previous commit. Dispatch/push only when authorized by
+the exact candidate. Verify all lifecycle scenarios of every orchestrator, job
+conclusions and head SHA, including skips; save a bounded sanitized summary
+with run URL. Do not accept core CI alone or a green previous commit. Dispatch/push only when authorized by
 the contribution workflow. Do not add a separate job for each recipe assertion.
 
 ### Private security review
