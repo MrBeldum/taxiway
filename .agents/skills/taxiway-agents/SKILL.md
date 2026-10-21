@@ -13,12 +13,15 @@ a scheduled agent follows the [approvals](../taxiway-workflow/SKILL.md#approvals
 
 Each agent is declared in this repository and changes only through reviewed PRs:
 
-- `.agents/agents/<id>.json`: `id` (the file name), `title`, optionally
-  `runs` (`cloud` by default, or `machine`), `schedule` (five cron fields, UTC;
-  required in the cloud, absent for a
-  [machine agent](#machine-agent-and-queue)), `model` (a model ID, or `default` for the account's
-  default), `repositories` (`read` or `write` per repository),
-  `workdir`, `skills`, `outputs` and `autonomy` (see [Autonomy](#autonomy));
+- `.agents/agents/<id>.json`: `id` (the file name), `title` (the name of its
+  session, and of its scheduled task in the cloud: `Taxiway – <role> agent
+  (<scope>)` with an en dash, for example `Taxiway – triage agent (backlog)`;
+  the watchdog is `Taxiway – agents watchdog`), optionally `runs` (`cloud` by
+  default, or `machine`), `schedule` (five cron fields, UTC; required in the
+  cloud, absent for a [machine agent](#machine-agent-and-queue)), `model` (a
+  model ID, or `default` for the account's default), `repositories` (`read`
+  or `write` per repository), `workdir`, `skills`, `outputs` and `autonomy`
+  (see [Autonomy](#autonomy));
 - `.agents/agents/<id>.prompt.md`: the job, read at the start of every run.
 
 `read` means the agent never pushes to that repository. `write` on
@@ -58,8 +61,8 @@ never rules:
   The history of `status/<id>.json` is the approval log and the friction log;
 - `deployed.json`: for each installed agent, its schedule, `model` and the
   `promptVersion` it was installed from. Session and scheduled task IDs stay
-  out of it: install and check look them up, the session by tag and the
-  scheduled task by name;
+  out of it: install and check look them up as [Install](#install) step 1
+  says;
 - `queue/machine/`, the [machine queue](#queue);
 - `improvement/`, trials and rejected proposals, defined by
   [`taxiway-improve`](../taxiway-improve/SKILL.md#state-layout), and
@@ -195,25 +198,48 @@ declaration-only PR.
 
 For each cloud declaration, or the one `id` requested:
 
-1. Look up the agent's session with `list_sessions` (tag
-   `taxiway-agent:<id>`; if the tag filter is refused, list your own sessions
-   and match the title `Taxiway agent: <id>`), and its scheduled task by the
-   same name, paging through `list_triggers`. Reuse them when they exist;
-   never create a second one for the same agent.
+1. Look up the agent's session and scheduled task, in this order, stopping at
+   the first match:
+   1. the session, not archived, tagged `taxiway-agent:<id>` (`list_sessions`
+      with the tag filter, which an in-session caller may be refused), and
+      the scheduled task bound to it;
+   2. the scheduled task whose stored prompt contains the path
+      `taxiway/.agents/agents/<id>.prompt.md`, paging through
+      `list_triggers`; its `persistent_session_id` is the agent's session.
+      This finds an agent whatever its names and however its bootstrap
+      prompt was worded;
+   3. the session and the scheduled task named with the declared `title`.
+
+   When a step finds more than one session or scheduled task for the agent,
+   stop for that agent and report them to the maintainer; never guess which
+   one is the agent's. Reuse them when they exist; never create a second one
+   for the same agent.
+   A session or scheduled task found under another name is renamed to the
+   declared `title` (`set_session_title`, `update_trigger`).
 2. Otherwise create one standing session for the agent from the `taxiway`
-   repository, with the declared `model`, titled `Taxiway agent: <id>` and
+   repository, with the declared `model`, titled with the declared `title` and
    tagged `taxiway-agent:<id>`, and send a setup-only first prompt: attach
    `taxiway-sh/agents` with `add_repo` (`access: push`), verify both clones
    and the tools, then stop. Tools cannot be pre-approved from another
    session, so the maintainer approves that one `add_repo` call in the
    agent's session; the repository then stays attached as a source of the
    session.
-3. Create a scheduled task named `Taxiway agent: <id>`, bound to that session,
-   with the declared schedule and the bootstrap prompt. Never use a new
-   session per run: such a session has no repository access.
+3. Create a scheduled task named with the declared `title`, bound to that
+   session, with the declared schedule and the bootstrap prompt. Never use a
+   new session per run: such a session has no repository access.
 4. When the schedule or the prompt changed, update the existing scheduled task.
-   When the model changed, archive the session, create a new one as in
-   step 2 and rebind the task.
+   When the model changed, a scheduled task cannot be rebound to another
+   session, so:
+   1. create a new session as in step 2, and wait until its setup is
+      verified, with the `add_repo` call approved;
+   2. only then create a new scheduled task bound to it as in step 3, with
+      the same `title`, schedule and bootstrap prompt;
+   3. delete the old scheduled task with `delete_trigger`;
+   4. rename the old session `OLD session – <title>` with
+      `set_session_title`, then archive it with `archive_session`, so title
+      lookups find only the new one.
+
+   The new scheduled task's run history starts empty.
 5. Record the schedule, `model` and `promptVersion` in `deployed.json`.
 
 Installation is idempotent: running it again changes nothing that already
@@ -221,13 +247,21 @@ matches the declarations.
 
 ## Check
 
-Find each agent's session and scheduled task as in [Install](#install) step 1,
-then report:
+For each cloud declaration, find the agent's session and scheduled task as
+in [Install](#install) step 1, which stops for that agent and reports it when
+it has more than one session or scheduled task, then report:
 
-- the last heartbeat's date and result against the
-  schedule (late, failed or missing is a finding);
+- the last heartbeat's date and result against the declared `schedule`: a
+  heartbeat older than the latest time that cron expression fired, whether
+  it fires weekly or several times a day, is late; late, failed or missing
+  is a finding. Lateness comes from the declared cron, never from the
+  scheduled task's last run. A run still in progress is running, not late;
+- a declared agent that is missing from `deployed.json` and has no session
+  or scheduled task: not installed, which is reported as such, not as a
+  failed or late agent;
 - the scheduled task: present, enabled, last run;
 - the session: present and not failed;
+- a session or scheduled task whose name is not the declared `title`;
 - a `promptVersion` behind `main`, which shows the run read older
   instructions.
 

@@ -1,4 +1,4 @@
-# Morning watchdog
+# Taxiway – agents watchdog
 
 Scheduled run. Follow [`taxiway-agents`](../skills/taxiway-agents/SKILL.md#every-run)
 for the run contract; this file only adds the job. The watchdog reads and
@@ -9,12 +9,13 @@ heartbeat or with a manual [Check](../skills/taxiway-agents/SKILL.md#check).
 
 ## Checks
 
-1. For each other agent declared in `.agents/agents/` that runs in the cloud, apply
-   [Check](../skills/taxiway-agents/SKILL.md#check). A run still in progress is
-   reported as running, not as late.
+1. For each other agent declared in `.agents/agents/` on `main` that runs in
+   the cloud, apply [Check](../skills/taxiway-agents/SKILL.md#check), which
+   owns lateness against the declared schedule and the not-installed state.
 2. Check that the last scheduled run of each nightly workflow (`e2e.yml`,
-   `install.yml`, `model-catalog-update.yml`) started within the past 24 hours,
-   and report its conclusion; a run not finished yet is pending.
+   `install.yml`, `model-catalog-update.yml`) started within the past 24
+   hours, and report only a run that is missing or did not start. Failures
+   come from the [CI watch agent](ci-watch.prompt.md)'s `waiting` items.
 3. Collect every heartbeat's `waiting` items. A machine agent's heartbeat is
    its check; report an offline machine as
    [Heartbeat, offline machine and metrics](../skills/taxiway-agents/SKILL.md#heartbeat-offline-machine-and-metrics)
@@ -34,7 +35,12 @@ When something needs the maintainer, send one `PushNotification` titled
    the action and its link (the agent's session for its proposals, the run or
    issue otherwise);
 2. demotion incidents: agent, action class and the corrected action's link;
-3. failed, late or missing agents and workflows, with the evidence link.
+3. failed, late or missing agents and workflows, with the evidence link;
+4. agents not installed, each linked to its declaration on `main`.
+
+An agent not installed is listed in the reply and in `waiting` at every run,
+but calls for a `PushNotification` only on the first day it appears; when it
+is the only item, later runs reply with the list and send no notification.
 
 When nothing needs the maintainer, send no notification and reply only
 `Nothing needs you today.`; the heartbeat records the run.

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Check agent docs and docs/ pages: skill frontmatter and discovery symlinks,
-# scheduled agent declarations, autonomy, heartbeat schema (approval log and
-# frictions) and machine queue schema,
+# scheduled agent declarations and titles, autonomy, heartbeat schema
+# (approval log and frictions) and machine queue schema,
 # relative Markdown links (pages under docs/ reach other files through blob
 # URLs), and normative phrases that must stay in their owner.
 # Usage: scripts/check-agent-docs.sh [repository-root]
@@ -12,6 +12,7 @@ import json
 import pathlib
 import re
 import sys
+import unicodedata
 
 root = pathlib.Path(sys.argv[1]).resolve()
 # Pages rendered by the site link to repository files through this URL.
@@ -157,6 +158,11 @@ UTC_DATE = "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
 MACHINE_REPOSITORIES = {"taxiway-sh/taxiway": "read", "taxiway-sh/agents": "write"}
 APPROVAL_FIELDS = {"class", "proposal", "answer", "date", "link"}
 APPROVAL_ANSWERS = ["ok", "refused", "corrected"]
+# A declaration's title names its session and scheduled task (en dash); the
+# scope is printable ASCII without parentheses.
+TITLE = re.compile(r"Taxiway \u2013 [A-Za-z][A-Za-z0-9-]*(?: [A-Za-z0-9-]+)* agent"
+                   r" \([!-'*-~]+(?: [!-'*-~]+)*\)")
+WATCHDOG_TITLE = "Taxiway \u2013 agents watchdog"
 FRICTION_FIELDS = {"kind", "summary"}
 FRICTION_KINDS = ["missing-rule", "ambiguous-rule", "contradictory-rule",
                   "workaround", "check-not-run", "tool-refused"]
@@ -312,7 +318,7 @@ def check_queue_schema(schema):
 def check_agents():
     """Scheduled agent declarations: .agents/agents/<id>.json + <id>.prompt.md."""
     agents = root / ".agents/agents"
-    schedules = {}
+    schedules, titles = {}, {}
     schema = agents / HEARTBEAT_SCHEMA
     classes = {}
     if agents.is_dir():
@@ -380,6 +386,18 @@ def check_agents():
         for field in ("title", "workdir", "model"):
             if not isinstance(data.get(field), str) or not data.get(field):
                 errors.append(f"{name}: {field} must be a non-empty string")
+        title = data.get("title")
+        if isinstance(title, str) and title:
+            if any(unicodedata.category(c) == "Cf" for c in title):
+                errors.append(f"{name}: title must not contain invisible format characters")
+            elif decl.stem == "watchdog" and title != WATCHDOG_TITLE:
+                errors.append(f"{name}: title must be {WATCHDOG_TITLE!r}")
+            elif decl.stem != "watchdog" and not TITLE.fullmatch(title):
+                errors.append(f"{name}: title must be 'Taxiway \u2013 <role> agent (<scope>)'")
+            elif (key := unicodedata.normalize("NFKC", title).casefold()) in titles:
+                errors.append(f"{name}: title {title!r} already used by {titles[key]}")
+            else:
+                titles[key] = decl.stem
         for field in ("skills", "outputs"):
             if not isinstance(data.get(field), list) or not all(isinstance(v, str) for v in data.get(field)):
                 errors.append(f"{name}: {field} must be a list of strings")
