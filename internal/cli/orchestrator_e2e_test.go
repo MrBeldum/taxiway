@@ -33,7 +33,7 @@ import (
 	"github.com/taxiway-sh/taxiway/internal/recording"
 )
 
-const e2eFixtureRepoURL = "https://github.com/manufacture-dev/agreement-hub.git"
+const e2eFixtureRepoURL = "https://github.com/taxiway-sh/e2e-fixture.git"
 const e2eFakeModelResponse = "taxiway e2e fake upstream"
 
 // Orchestrators own workspace layout and session behavior. Agent assertions are
@@ -301,7 +301,7 @@ func e2eSemanticDryRunLabels(orch string) e2eDryRunLabels {
 	case "gascity":
 		labels.Install = []string{"Installing Gas City", "Installing @anthropic-ai/claude-code@"}
 		labels.Verify = []string{"Verifying tool versions", "Verifying claude version, help, and auth status"}
-		labels.Workspace = []string{"Cloning workspace repository", "Adding rig 'agreement-hub'"}
+		labels.Workspace = []string{"Cloning workspace repository", "Adding rig 'e2e-fixture'"}
 		labels.Auth = []string{"Checking Claude Code authentication"}
 		labels.Start = []string{"Configuring Gas City for the Taxiway LiteLLM gateway", "Waiting for Gas City agent sessions", "Starting tmux session 'gascity'"}
 	}
@@ -2066,8 +2066,8 @@ func runE2EGastownReadinessActions(t *testing.T, state *RootState, id, stage str
 		// Exercise the adapter's normal launcher in a directory created after
 		// startup. Trust at install time cannot accidentally satisfy this case.
 		crew := fmt.Sprintf("readiness%x", time.Now().UnixNano())
-		run(t, false, "gt", "crew", "add", crew, "--rig", "agreement_hub")
-		run(t, false, "gt", "crew", "start", "agreement_hub", crew)
+		run(t, false, "gt", "crew", "add", crew, "--rig", "e2e_fixture")
+		run(t, false, "gt", "crew", "start", "e2e_fixture", crew)
 		newSessions := strings.Fields(run(t, false, "tmux", "-L", status.Tmux.Socket, "list-sessions", "-F", "#{session_name}"))
 		for _, session := range newSessions {
 			if strings.HasSuffix(session, "-crew-"+crew) {
@@ -2078,7 +2078,7 @@ func runE2EGastownReadinessActions(t *testing.T, state *RootState, id, stage str
 		runE2EAssert(t, "assert:fresh-crew-configured-and-trusted", func(t *testing.T) {
 			require.NotEmpty(t, newSession, "new crew must start an actual agent session")
 			assertE2EClaudeEnvironment(t, state, id, status.Tmux.Socket, newSession)
-			assertE2EAgentWorkspaceTrusted(t, state, id, "claude-code", "/lab/work/gt/agreement_hub/crew/"+crew)
+			assertE2EAgentWorkspaceTrusted(t, state, id, "claude-code", "/lab/work/gt/e2e_fixture/crew/"+crew)
 		})
 	})
 	runE2EStep(t, "agent:send[fresh-crew-readiness-probe]@"+stage, func(t *testing.T) {
@@ -2132,10 +2132,10 @@ func runE2EGastownHandoff(t *testing.T, state *RootState, id string) {
 	})
 	// Initiate from Mayor (no patrol cooldown): repeat remote refinery handoff,
 	// then exercise Mayor's self-handoff through the same restart builder.
-	for attempt, target := range []string{"ah-refinery", "ah-refinery", "hq-mayor"} {
+	for attempt, target := range []string{"ef-refinery", "ef-refinery", "hq-mayor"} {
 		runE2EStep(t, fmt.Sprintf("gt:handoff[%s,attempt=%d]", target, attempt+1), func(t *testing.T) {
 			before := run(t, "tmux", "-L", status.Tmux.Socket, "display-message", "-p", "-t", target, "#{pane_pid}")
-			role := "agreement_hub/refinery"
+			role := "e2e_fixture/refinery"
 			if target == "hq-mayor" {
 				role = "mayor"
 			}
@@ -2249,7 +2249,7 @@ func assertE2EGascityStopped(t *testing.T, state *RootState, id string) {
 const (
 	e2eGascityCityDir = "/lab/work/gc"
 	e2eGascitySocket  = "gc"
-	e2eGascityRepo    = "/lab/work/agreement-hub"
+	e2eGascityRepo    = "/lab/work/e2e-fixture"
 )
 
 type e2eGascitySession struct {
@@ -2338,7 +2338,7 @@ func assertE2EGascitySessions(t *testing.T, state *RootState, id string) {
 	defer cancel()
 	// Persistent roles restart fresh after each drain, so one can be briefly
 	// relaunching: require each to be active within a bounded wait.
-	roles := []string{"gastown.mayor", "gastown.deacon", "agreement-hub/gastown.witness"}
+	roles := []string{"gastown.mayor", "gastown.deacon", "e2e-fixture/gastown.witness"}
 	var sessions []e2eGascitySession
 	var missing []string
 	for deadline := time.Now().Add(2 * time.Minute); ; time.Sleep(3 * time.Second) {
@@ -2439,7 +2439,7 @@ func runE2EGascityReadinessActions(t *testing.T, state *RootState, id, stage str
 		// A session created after startup proves that configuration and trust
 		// apply to every launch, not only to the sessions start observed.
 		alias := fmt.Sprintf("readiness%x", time.Now().UnixNano())
-		output := runE2EGascity(t, ctx, state, id, "gc", "session", "new", "agreement-hub/claude", "--alias", alias, "--no-attach", "--json")
+		output := runE2EGascity(t, ctx, state, id, "gc", "session", "new", "e2e-fixture/claude", "--alias", alias, "--no-attach", "--json")
 		require.NoError(t, json.Unmarshal([]byte(output), &fresh), "gc session new: %s", output)
 		waitE2EGascityClaude(t, ctx, state, id, fresh.SessionName, "")
 		waitE2EGascityActive(t, ctx, state, id, fresh.SessionID)
@@ -2468,7 +2468,7 @@ func runE2EGascityHandoff(t *testing.T, state *RootState, id string) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
-	for _, role := range []string{"agreement-hub/gastown.witness", "gastown.mayor"} {
+	for _, role := range []string{"e2e-fixture/gastown.witness", "gastown.mayor"} {
 		runE2EStep(t, fmt.Sprintf("gc:session[reset,%s]", role), func(t *testing.T) {
 			var target e2eGascitySession
 			for _, session := range e2eGascityAgentSessions(t, ctx, state, id) {
@@ -2499,9 +2499,9 @@ func e2eGascityFixtureWorkspace(t *testing.T) e2eFixtureWorkspace {
 		checkCommand: strings.Join([]string{
 			"test -f '" + e2eGascityCityDir + "/city.toml'",
 			"git -C '" + e2eGascityRepo + "' rev-parse --is-inside-work-tree >/dev/null",
-			`cd '` + e2eGascityCityDir + `' && PATH="$HOME/.local/bin:$PATH" gc rig list --json 2>/dev/null | jq -e '.rigs[] | select(.name == "agreement-hub" and .path == "` + e2eGascityRepo + `")' >/dev/null`,
+			`cd '` + e2eGascityCityDir + `' && PATH="$HOME/.local/bin:$PATH" gc rig list --json 2>/dev/null | jq -e '.rigs[] | select(.name == "e2e-fixture" and .path == "` + e2eGascityRepo + `")' >/dev/null`,
 		}, " && "),
-		description: e2eGascityCityDir + "/city.toml, git workspace " + e2eGascityRepo + " and its agreement-hub rig",
+		description: e2eGascityCityDir + "/city.toml, git workspace " + e2eGascityRepo + " and its e2e-fixture rig",
 		repository:  e2eGascityRepo,
 	}
 }
@@ -2900,7 +2900,7 @@ func e2eGastownFixtureWorkspace(t *testing.T) e2eFixtureWorkspace {
 	require.NoError(t, err)
 	crewName := sanitizeIdentifier(rawCrew)
 	hqMarker := "/lab/work/gt/.taxiway-hq-initialized"
-	rigDir := "/lab/work/gt/agreement_hub"
+	rigDir := "/lab/work/gt/e2e_fixture"
 	crewDir := rigDir + "/crew/" + crewName
 	return e2eFixtureWorkspace{
 		checkCommand: strings.Join([]string{
@@ -2916,7 +2916,7 @@ func e2eGastownFixtureWorkspace(t *testing.T) e2eFixtureWorkspace {
 
 func e2ePlainFixtureWorkspace(t *testing.T) e2eFixtureWorkspace {
 	t.Helper()
-	const workspaceDir = "/lab/work/agreement-hub"
+	const workspaceDir = "/lab/work/e2e-fixture"
 	return e2eFixtureWorkspace{
 		checkCommand: "test -d '" + workspaceDir + "/.git'",
 		description:  workspaceDir + "/.git",
