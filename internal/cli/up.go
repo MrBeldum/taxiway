@@ -472,7 +472,6 @@ type runUpOpts struct {
 	profileClear            bool
 }
 
-
 // shellAttachHint is the shared next-action line after a successful start.
 // The lab name is the public taxiway shell argument; orchestrator/tmux names
 // must not appear here (taxiway-sh/taxiway#75).
