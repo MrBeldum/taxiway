@@ -82,6 +82,24 @@ tests under `site/`, and what they call.
 - Checks fork CI does not cover (lifecycle E2E, Lima, live validation) are
   reported as "could not run" for the contributor's code.
 
+## Agent push script
+
+[`scripts/agents/push-heartbeat.sh`](../../../scripts/agents/push-heartbeat.sh)
+is sensitive: every scheduled agent runs it to commit and push its state, so a
+change to it needs the maintainer's careful review of every line. The
+repository's `.claude/settings.json` does not pre-approve it: in auto mode an
+agent edits its clone without review, so such a rule would let an edited
+script run without any check. Cloud agents run it under the session's usual
+permission checks, and the
+[run contract](../taxiway-agents/SKILL.md#every-run) forbids editing it. The
+machine agent's own `~/.claude/settings.json` allows it
+([Machine setup](../taxiway-agents/SKILL.md#machine-setup) step 7); that
+account already allows `python3` and `make`, and its `Edit` and `Write` rules
+exclude the `taxiway` clone, so the rule adds no reach.
+The script guards the `agents` clone: it refuses git configuration a plain
+clone does not write, disables hooks and the file system monitor, and runs
+the state validator from `origin/main`; it cannot protect itself.
+
 ## Public writing
 
 - Issues, PRs, comments, release notes and the scheduled agents' state
