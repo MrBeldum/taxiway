@@ -4,7 +4,6 @@
 # If credentials are missing (no OAuth credentials),
 # claude is still launched — it will prompt for login interactively.
 # The browser OAuth flow works via Lima's transparent localhost forwarding.
-#
 
 set -euo pipefail
 

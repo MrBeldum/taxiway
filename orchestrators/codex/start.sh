@@ -2,7 +2,6 @@
 # Start Codex in a detached tmux session named "codex".
 #
 # Codex authentication is managed by LiteLLM; labs only need the LiteLLM key.
-#
 
 set -euo pipefail
 
