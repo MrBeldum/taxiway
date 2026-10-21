@@ -2319,3 +2319,27 @@ func TestVersionChangeUsesPersistedLabDriver(t *testing.T) {
 	require.True(t, ok)
 	require.Equal(t, "0.160.0", saved.Settings["codex-version"])
 }
+
+func TestLabScriptsReceiveTheDriverGuestKind(t *testing.T) {
+	root, _, mock, stdout, stderr := buildUpTestRoot(t)
+
+	_, _, err := execUpRoot(t, root, stdout, stderr, "up", "mon-lab", "--type", "gastown")
+	require.NoError(t, err)
+
+	scripts := 0
+	for i, env := range mock.ExecEnvLog {
+		if !strings.HasSuffix(mock.ExecLog[i], ".sh") {
+			continue // direct driver commands are not phase scripts
+		}
+		scripts++
+		require.Equal(t, mock.GuestKind(), env["TAXIWAY_GUEST_KIND"], "script %s", mock.ExecLog[i])
+	}
+	require.Positive(t, scripts)
+}
+
+func TestWithGuestKindOverridesCallerValue(t *testing.T) {
+	caller := map[string]string{"TAXIWAY_GUEST_KIND": "vm", "KEEP": "1"}
+	env := withGuestKind(driver.NewMockDriver(t.TempDir()), caller)
+	require.Equal(t, map[string]string{"TAXIWAY_GUEST_KIND": "container", "KEEP": "1"}, env)
+	require.Equal(t, "vm", caller["TAXIWAY_GUEST_KIND"], "caller env is not mutated")
+}

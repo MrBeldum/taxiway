@@ -58,9 +58,11 @@ scheduled, or manually triggered validation:
 make test-e2e
 ```
 
-Use `make test-e2e-only` to run only end-to-end tests.
-Use `make test-e2e-claude-code`, `make test-e2e-codex`, or
-`make test-e2e-gastown` to run one orchestrator integration.
+Use `make test-e2e-only` to run only end-to-end tests. The aggregate targets
+run every orchestrator in sequence (about 2.5 hours, `E2E_SUITE_TIMEOUT`); see
+[Testing](testing.md) for the per-target timeouts.
+Use `make test-e2e-claude-code`, `make test-e2e-codex`, `make test-e2e-gastown`, or
+`make test-e2e-gascity` to run one orchestrator integration.
 Use the `*-up` variants, followed by the `*-prepare-run` variants, before the
 `*-phase-by-phase` variants when debugging the scheduled orchestrator end-to-end
 sequence locally.
