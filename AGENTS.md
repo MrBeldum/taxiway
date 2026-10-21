@@ -43,6 +43,7 @@ Each rule has one owner; link to it instead of restating it. This file and the s
 | Start or resume a session, approvals, coordination | [`taxiway-workflow` skill](.agents/skills/taxiway-workflow/SKILL.md) |
 | New need, bug report, creating an issue; issue format, scope and labels | [`taxiway-intake` skill](.agents/skills/taxiway-intake/SKILL.md), [Issues](docs/contributing/issues.md) |
 | Backlog ranking, label hygiene, external and bot PRs | [`taxiway-triage` skill](.agents/skills/taxiway-triage/SKILL.md) |
+| External contributors: replies, claims, external PR reviews, follow-up, credit | [`taxiway-contributions` skill](.agents/skills/taxiway-contributions/SKILL.md), [CONTRIBUTING](CONTRIBUTING.md) |
 | Learnings from a session, PR, issue, git history or past transcripts | [`taxiway-learn` skill](.agents/skills/taxiway-learn/SKILL.md) |
 | Improving a practice, skill or agent; trials and rejected proposals | [`taxiway-improve` skill](.agents/skills/taxiway-improve/SKILL.md) |
 | Scheduled agents: declarations, install, check, run contract | [`taxiway-agents` skill](.agents/skills/taxiway-agents/SKILL.md) |
